@@ -6,22 +6,23 @@
 #endregion
 
 
-using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
+using UnityEngine;
 
 [AddComponentMenu("Nuitrack/Example/TranslationAvatar")]
 public class NativeAvatar : MonoBehaviour
 {
     [Header("References")]
-    public GameObject PrefabJoint;
-    public GameObject snowBallPrefab;
+    [SerializeField] private GameObject PrefabJoint;
+    [SerializeField] private GameObject snowBallPrefab;
 
     [Header("Tweaking")]
-    public nuitrack.JointType[] typeJoint;
-    public float velocityThreshold = 0.2f;
-    public float force = 1f;
-    public float cooldown = 2f;
-
+    [SerializeField] private nuitrack.JointType[] typeJoint;
+    [SerializeField] private float velocityThreshold = 0.2f;
+    [SerializeField] private float force = 1f;
+    [SerializeField] private float cooldown = 2f;
+    [SerializeField] private float skeletonSize = 0.001f;
 
     string message = "";
     GameObject[] CreatedJoint;
@@ -38,9 +39,11 @@ public class NativeAvatar : MonoBehaviour
     Vector3 leftPosDelta;
     Vector3 rightPosDelta;
 
-    List<GameObject> ballList = new List<GameObject>();
+    List<GameObject> targetList = new List<GameObject>();
 
     float lastLaunchForce = 0;
+
+    internal GameObject currentTarget = null;
 
     void Start()
     {
@@ -52,7 +55,7 @@ public class NativeAvatar : MonoBehaviour
         }
         message = "Skeleton created";
         currentCooldown = cooldown;
-        ballList.AddRange(GameObject.FindGameObjectsWithTag("Target"));
+        targetList.AddRange(GameObject.FindGameObjectsWithTag("Target"));
     }
 
     void Update()
@@ -65,7 +68,7 @@ public class NativeAvatar : MonoBehaviour
             for (int q = 0; q < typeJoint.Length; q++)
             {
                 nuitrack.Joint joint = skeleton.GetJoint(typeJoint[q]);
-                Vector3 newPosition = 0.001f * joint.ToVector3();
+                Vector3 newPosition = skeletonSize * joint.ToVector3();
                 CreatedJoint[q].transform.localPosition = newPosition;
                 if (leftHand == null && joint.Type == nuitrack.JointType.LeftHand)
                 {
@@ -86,11 +89,21 @@ public class NativeAvatar : MonoBehaviour
             leftPosDelta = leftHand.transform.position - leftLastPos;
             rightPosDelta = rightHand.transform.position - rightLastPos;
 
-            if (rightHand != null && rightPosDelta.magnitude > velocityThreshold && canShoot)
+            if (rightHand != null && (rightPosDelta.magnitude > velocityThreshold || Input.GetKeyUp(KeyCode.Space)) && canShoot)
             {
                 GameObject snowball = Instantiate(snowBallPrefab, rightHand.transform.position, Quaternion.identity);
-                snowball.GetComponent<Rigidbody>().velocity = (rightHand.transform.position - GetRandomBallPos()) * (force * (1+rightPosDelta.magnitude));
-                lastLaunchForce = 1+rightPosDelta.magnitude;
+                if(currentTarget == null)
+                {
+                    //if no target, send in front of you (taking the perspective into account)
+                    snowball.GetComponent<Rigidbody>().velocity = (rightHand.transform.position - Camera.main.transform.position).normalized * force * rightPosDelta.magnitude;
+                }
+                else
+                {
+                    //if there is a target, launch ball to it
+                    snowball.GetComponent<Rigidbody>().velocity = (currentTarget.transform.position - rightHand.transform.position).normalized * force * rightPosDelta.magnitude;
+                }
+                Destroy(snowball.gameObject, 5f);
+                lastLaunchForce = rightPosDelta.magnitude;
                 canShoot = false;
             }
         }
@@ -99,20 +112,13 @@ public class NativeAvatar : MonoBehaviour
             message = "Skeleton not found";
         }
 
-        if(currentCooldown > 0 && !canShoot)
+        if (currentCooldown > 0 && !canShoot)
             currentCooldown -= Time.deltaTime;
         else
         {
             canShoot = true;
             currentCooldown = cooldown;
         }
-        
-    }
-
-    public Vector3 GetRandomBallPos()
-    {
-        int rnd = Random.Range(0, ballList.Count);
-        return ballList[rnd].transform.position;
     }
 
     private void LateUpdate()
@@ -129,7 +135,27 @@ public class NativeAvatar : MonoBehaviour
     {
         GUI.color = Color.red;
         GUI.skin.label.fontSize = 50;
-        if( rightHand != null )
-        GUILayout.Label("Your Launch with a force of "+(lastLaunchForce * 100).ToString());
+        if (rightHand != null)
+            GUILayout.Label("Your Launch with a force of " + (lastLaunchForce).ToString());
     }
+
+    public Vector3 GetRandomTargetPos()
+    {
+        int rnd = Random.Range(0, targetList.Count);
+        return targetList[rnd].transform.position;
+    }
+
+    public void DisableTarget()
+    {
+        if(currentTarget != null)
+            StartCoroutine("WaitThenDisableTarget");
+    }
+
+    IEnumerator WaitThenDisableTarget()
+    {
+        yield return new WaitForSeconds(1.5f);
+        currentTarget.GetComponentInParent<ElfTarget>().GetComponentInChildren<SpriteRenderer>().color = Color.white;
+        currentTarget = null;
+    }
+
 }
