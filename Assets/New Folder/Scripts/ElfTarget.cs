@@ -15,6 +15,13 @@ public struct MinMaxTime
     }
 }
 
+public enum E_ElfState
+{
+    Hidden,
+    Visible,
+    Stunned
+}
+
 public class ElfTarget : MonoBehaviour
 {
     [Header("Tweaking")]
@@ -28,22 +35,27 @@ public class ElfTarget : MonoBehaviour
     Sequence mySequence;
     private Animator animatorController;
 
+    internal E_ElfState currentState { get; private set; }
+
     void Awake()
     {
         originalPos = transform.position;
         animatorController = GetComponent<Animator>();
         mySequence = DOTween.Sequence();
+        currentState = E_ElfState.Hidden;
     }
 
     // Use this for initialization
     void Start()
     {
-        mySequence.AppendInterval(Random.Range(timeHidden.min, timeHidden.max))
-          .Append(transform.DOMove(originalPos + (transform.up * movementAmplitude), Random.Range(timeToMove.min, timeToMove.max)))
-          .AppendInterval(Random.Range(timeIdle.min, timeIdle.max))
-          .Append(transform.DOMove(originalPos, Random.Range(timeToMove.min, timeToMove.max)))
-          .AppendCallback(ResetAnimator)
-          .SetLoops(-1);
+        mySequence.AppendInterval(Random.Range(timeHidden.min, timeHidden.max)) //wait timeHidden
+          .Append(transform.DOMove(originalPos + (transform.up * movementAmplitude), Random.Range(timeToMove.min, timeToMove.max))) //move up in timeToMove
+          .AppendCallback( () => { currentState = E_ElfState.Visible; }) //you are now visible
+          .AppendInterval(Random.Range(timeIdle.min, timeIdle.max)) //wait timeIdle
+          .Append(transform.DOMove(originalPos, Random.Range(timeToMove.min, timeToMove.max))) //move to your original Pos
+          .AppendCallback(() => { currentState = E_ElfState.Hidden; }) // you are now Hidden
+          .AppendCallback(ResetAnimator) //reset your face
+          .SetLoops(-1); //loop
     }
 
     void ResetAnimator()
@@ -63,6 +75,7 @@ public class ElfTarget : MonoBehaviour
     private void OnTriggerEnter2D(Collider2D other)
     {
         animatorController.SetTrigger("Hit");
+        currentState = E_ElfState.Stunned;
         mySequence.Pause();
         StartCoroutine("WaitBeforeUnPause");
     }
