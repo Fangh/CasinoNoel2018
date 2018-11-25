@@ -61,7 +61,7 @@ public class GameModeManager : MonoBehaviour
         }
         else
         {
-            titleObject.GetComponent<TextMeshPro>().text = string.Format("Vous avez {0} boules de neige pour gagner un cadeau !!", maxNbRetry);
+            titleObject.GetComponent<TextMeshPro>().text = string.Format("Vous avez {0} boules de neige pour gagner un cadeau", maxNbRetry);
         }
         currentGameMode = newMode;
     }

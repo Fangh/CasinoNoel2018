@@ -24,13 +24,13 @@ public class ElfTarget : MonoBehaviour
     [SerializeField] private float timeStunned = 3f;
     [SerializeField] private float movementAmplitude = 1f;
 
-    private float originalY;
+    private Vector3 originalPos;
     Sequence mySequence;
     private Animator animatorController;
 
     void Awake()
     {
-        originalY = transform.position.y;
+        originalPos = transform.position;
         animatorController = GetComponent<Animator>();
         mySequence = DOTween.Sequence();
     }
@@ -39,9 +39,9 @@ public class ElfTarget : MonoBehaviour
     void Start()
     {
         mySequence.AppendInterval(Random.Range(timeHidden.min, timeHidden.max))
-          .Append(transform.DOMoveY(originalY + movementAmplitude, Random.Range(timeToMove.min, timeToMove.max)))
+          .Append(transform.DOMove(originalPos + (transform.up * movementAmplitude), Random.Range(timeToMove.min, timeToMove.max)))
           .AppendInterval(Random.Range(timeIdle.min, timeIdle.max))
-          .Append(transform.DOMoveY(originalY, Random.Range(timeToMove.min, timeToMove.max)))
+          .Append(transform.DOMove(originalPos, Random.Range(timeToMove.min, timeToMove.max)))
           .AppendCallback(ResetAnimator)
           .SetLoops(-1);
     }
