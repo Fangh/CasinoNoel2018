@@ -31,6 +31,9 @@ public class ElfTarget : MonoBehaviour
     [SerializeField] private float timeStunned = 3f;
     [SerializeField] private float movementAmplitude = 1f;
 
+    [Header("References")]
+    [SerializeField] private GameObject aim;
+
     private Vector3 originalPos;
     Sequence mySequence;
     private Animator animatorController;
@@ -43,6 +46,7 @@ public class ElfTarget : MonoBehaviour
         animatorController = GetComponent<Animator>();
         mySequence = DOTween.Sequence();
         currentState = E_ElfState.Hidden;
+        aim.SetActive(false);
     }
 
     // Use this for initialization
@@ -52,10 +56,12 @@ public class ElfTarget : MonoBehaviour
           .Append(transform.DOMove(originalPos + (transform.up * movementAmplitude), Random.Range(timeToMove.min, timeToMove.max))) //move up in timeToMove
           .AppendCallback( () => { currentState = E_ElfState.Visible; }) //you are now visible
           .AppendInterval(Random.Range(timeIdle.min, timeIdle.max)) //wait timeIdle
+          .AppendCallback( () => { animatorController.SetTrigger("Miss"); })
           .Append(transform.DOMove(originalPos, Random.Range(timeToMove.min, timeToMove.max))) //move to your original Pos
           .AppendCallback(() => { currentState = E_ElfState.Hidden; }) // you are now Hidden
           .AppendCallback(ResetAnimator) //reset your face
           .SetLoops(-1); //loop
+        Stop();
     }
 
     void ResetAnimator()
@@ -72,8 +78,27 @@ public class ElfTarget : MonoBehaviour
 
     }
 
-    private void OnTriggerEnter2D(Collider2D other)
+    public void Stop()
     {
+        transform.position = originalPos;
+        currentState = E_ElfState.Hidden;
+        aim.SetActive(false);
+        mySequence.Pause();
+    }
+
+    public void Play()
+    {
+        mySequence.Restart();
+    }
+
+    public void ToggleAim(bool toggle)
+    {
+        aim.SetActive(toggle);
+    }
+
+    private void OnTriggerEnter(Collider other)
+    {
+        GameManager.Instance.TargetHit();
         animatorController.SetTrigger("Hit");
         currentState = E_ElfState.Stunned;
         mySequence.Pause();

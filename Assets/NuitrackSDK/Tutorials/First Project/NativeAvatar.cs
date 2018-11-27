@@ -44,6 +44,7 @@ public class NativeAvatar : MonoBehaviour
     float lastLaunchForce = 0;
 
     internal GameObject currentTarget = null;
+    internal bool hasTarget = false;
 
     void Start()
     {
@@ -86,38 +87,44 @@ public class NativeAvatar : MonoBehaviour
                 }
             }
 
-            leftPosDelta = leftHand.transform.position - leftLastPos;
-            rightPosDelta = rightHand.transform.position - rightLastPos;
-
-            if (rightHand != null && (rightPosDelta.magnitude > velocityThreshold || Input.GetKeyUp(KeyCode.Space)) && canShoot)
+            //you can shoot only if you are playing
+            if (GameManager.Instance.gameStatesManagerInstance.currentGameState == E_GameState.FreePlay
+                || GameManager.Instance.gameStatesManagerInstance.currentGameState == E_GameState.PrizePlay)
             {
-                GameObject snowball = Instantiate(snowBallPrefab, rightHand.transform.position, Quaternion.identity);
-                if(currentTarget == null)
-                {
-                    //if no target, send in front of you (taking the perspective into account)
-                    snowball.GetComponent<Rigidbody>().velocity = (rightHand.transform.position - Camera.main.transform.position).normalized * force * rightPosDelta.magnitude;
-                }
-                else
-                {
-                    //if there is a target, launch ball to it
-                    snowball.GetComponent<Rigidbody>().velocity = (currentTarget.transform.position - rightHand.transform.position).normalized * force * rightPosDelta.magnitude;
-                }
-                Destroy(snowball.gameObject, 5f);
-                lastLaunchForce = rightPosDelta.magnitude;
-                canShoot = false;
-            }
-        }
-        else
-        {
-            message = "Skeleton not found";
-        }
+                leftPosDelta = leftHand.transform.position - leftLastPos;
+                rightPosDelta = rightHand.transform.position - rightLastPos;
 
-        if (currentCooldown > 0 && !canShoot)
-            currentCooldown -= Time.deltaTime;
-        else
-        {
-            canShoot = true;
-            currentCooldown = cooldown;
+                if (rightHand != null && (rightPosDelta.magnitude > velocityThreshold || Input.GetKeyUp(KeyCode.Space)) && canShoot)
+                {
+                    GameObject snowball = Instantiate(snowBallPrefab, rightHand.transform.position, Quaternion.identity);
+                    GameManager.Instance.UseProjectile();
+                    if (currentTarget == null)
+                    {
+                        //if no target, send in front of you (taking the perspective into account)
+                        snowball.GetComponent<Rigidbody>().velocity = (rightHand.transform.position - Camera.main.transform.position).normalized * force * rightPosDelta.magnitude;
+                    }
+                    else
+                    {
+                        //if there is a target, launch ball to it
+                        snowball.GetComponent<Rigidbody>().velocity = (currentTarget.transform.position - rightHand.transform.position).normalized * force * rightPosDelta.magnitude;
+                    }
+                    Destroy(snowball.gameObject, 5f);
+                    lastLaunchForce = rightPosDelta.magnitude;
+                    canShoot = false;
+                }
+            }
+            else
+            {
+                message = "Skeleton not found";
+            }
+
+            if (currentCooldown > 0 && !canShoot)
+                currentCooldown -= Time.deltaTime;
+            else
+            {
+                canShoot = true;
+                currentCooldown = cooldown;
+            }
         }
     }
 
@@ -131,13 +138,13 @@ public class NativeAvatar : MonoBehaviour
     }
 
     // Display the message on the screen
-    void OnGUI()
-    {
-        GUI.color = Color.red;
-        GUI.skin.label.fontSize = 50;
-        if (rightHand != null)
-            GUILayout.Label("Your Launch with a force of " + (lastLaunchForce).ToString());
-    }
+    //void OnGUI()
+    //{
+    //    GUI.color = Color.red;
+    //    GUI.skin.label.fontSize = 50;
+    //    if (rightHand != null)
+    //        GUILayout.Label("Your Launch with a force of " + (lastLaunchForce).ToString());
+    //}
 
     public Vector3 GetRandomTargetPos()
     {
@@ -145,17 +152,23 @@ public class NativeAvatar : MonoBehaviour
         return targetList[rnd].transform.position;
     }
 
+    public void EnableTarget(GameObject target)
+    {
+        currentTarget = target;
+        hasTarget = true;
+    }
+
     public void DisableTarget()
     {
-        if(currentTarget != null)
+        if (currentTarget != null)
             StartCoroutine("WaitThenDisableTarget");
     }
 
     IEnumerator WaitThenDisableTarget()
     {
         yield return new WaitForSeconds(1.5f);
-        currentTarget.GetComponentInParent<ElfTarget>().GetComponentInChildren<SpriteRenderer>().color = Color.white;
+        currentTarget.GetComponentInParent<ElfTarget>().ToggleAim(false);
         currentTarget = null;
+        hasTarget = false;
     }
-
 }
